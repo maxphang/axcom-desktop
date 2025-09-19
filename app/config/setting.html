@@ -46,50 +46,44 @@
 
 
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            if (!window.electronAPI) {
-                console.error('Electron bridge is not available.');
-                return;
+        // $(document).ready(function(){
+
+            const { remote } = require('electron');
+            const mainProcess = remote.require('./main.js');
+    
+            //reading the current config
+            let systemVersion = mainProcess.getSystemVersion();
+
+            document.getElementById('systemVersion').innerHTML = systemVersion;
+
+            let config = mainProcess.readConfiguration();
+            console.log('current config', config.defaultLoadUrl);
+    
+            //update the fields
+            document.getElementById("loadUrl").value = config?.loadUrl;
+            document.getElementById("defaultLoadUrl").innerHTML = config?.defaultLoadUrl;
+            
+            document.getElementById("saveButton").onclick = () => {
+
+
+                let currentUrl = document.getElementById("loadUrl").value;
+
+                // alert('clicked' + currentUrl);
+
+                // if(currentUrl == '') {
+                //     alert("Url cannot be empty.");
+                //     return false;
+                // }
+
+                console.log('saving configuration', currentUrl);
+
+                const res = mainProcess.saveConfiguration(currentUrl);
+
+                // alert("Saved Config : " + JSON.stringify(res));
             }
-
-            const loadUrlInput = document.getElementById('loadUrl');
-            const defaultLoadUrl = document.getElementById('defaultLoadUrl');
-            const systemVersion = document.getElementById('systemVersion');
-            const saveButton = document.getElementById('saveButton');
-
-            const refreshConfig = async () => {
-                try {
-                    const config = await window.electronAPI.readConfiguration();
-                    loadUrlInput.value = config?.loadUrl ?? '';
-                    defaultLoadUrl.textContent = config?.defaultLoadUrl ?? '';
-                } catch (error) {
-                    console.error('Failed to read configuration.', error);
-                }
-            };
-
-            window.electronAPI.getSystemVersion()
-                .then((version) => {
-                    systemVersion.textContent = version ?? '--';
-                })
-                .catch((error) => {
-                    console.error('Failed to read system version.', error);
-                    systemVersion.textContent = '--';
-                });
-
-            saveButton.addEventListener('click', async () => {
-                const currentUrl = loadUrlInput.value;
-
-                try {
-                    const config = await window.electronAPI.saveConfiguration(currentUrl);
-                    loadUrlInput.value = config?.loadUrl ?? '';
-                    defaultLoadUrl.textContent = config?.defaultLoadUrl ?? '';
-                } catch (error) {
-                    console.error('Failed to save configuration.', error);
-                }
-            });
-
-            refreshConfig();
-        });
+    
+            // mainProcess.test(); // 'Yay'
+        // })
     </script>
 
 </body>

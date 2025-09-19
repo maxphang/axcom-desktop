@@ -1,0 +1,62 @@
+{
+    "name": "axcom.axwms.desktop",
+    "version": "1.0.1",
+    "description": "AXCOM Desktop Client Solution",
+    "main": "app/main.js",
+    "scripts": {
+        "start": "electron .",
+        "install": "electron-rebuild",
+        "pack": "electron-builder --dir",
+        "dist": "electron-builder"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:serialport/electron-serialport.git"
+    },
+    "keywords": [
+        "Electron",
+        "quick",
+        "start",
+        "tutorial",
+        "demo"
+    ],
+    "author": "GitHub",
+    "license": "CC0-1.0",
+    "devDependencies": {
+        "electron": "^13.1.6",
+        "electron-builder": "^22.13.1",
+        "electron-packager": "^16.0.0",
+        "electron-rebuild": "^2.3.5"
+    },
+    "dependencies": {
+        "electron-photon": "^1.1.6",
+        "escpos": "^3.0.0-alpha.6",
+        "escpos-network": "^3.0.0-alpha.5",
+        "escpos-usb": "^3.0.0-alpha.4",
+        "npm": "^7.23.0",
+        "serialport": "^9.2.0",
+        "stable": "^0.1.8",
+        "tableify": "^1.1.0"
+    },
+    "build": {
+        "appId": "axcom.axwms.desktop",
+        "productName": "AXWMS-Desktop",
+        "copyright": "Copyright @2022 AXCOM",
+        "buildVersion": "1",
+        "win": {
+            "target": "nsis"
+        },
+        "directories": {
+            "app": ".",
+            "output": "out",
+            "buildResources": "build-res"
+        },
+        "files": [
+            "config/*",
+            "package.json",
+            "app/**/*",
+            "node_modules"
+        ],
+        "extends": null
+    }
+}

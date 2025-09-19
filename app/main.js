@@ -1,119 +1,21 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, dialog, screen } = require('electron');
-const path = require('path');
-const fs = require('fs');
+const electron = require('electron')
+const {app, BrowserWindow, ipcMain, globalShortcut, dialog } = electron; 
+    // Module to control application life.
+// const app = electron.app
+    // Module to create native browser window.
+// const BrowserWindow = electron.BrowserWindow
+// const express = require("express");
+const path = require('path')
+const url = require('url')
+var fs = require('fs');
 
 // const Alert = require("electron-alert");
 
 // const configFolder = 'config';
 // const configName = 'config.json';
 // const configFileName = configFolder + "/" + configName;
-const CONFIG_FILE_NAME = 'config.json';
-const DEFAULT_CONFIG = {
-    defaultLoadUrl: 'https://sctrading.storemyway.com/web/admin/',
-    loadUrl: 'https://sctrading.storemyway.com/web/admin/'
-};
-
-function getConfigPath() {
-    return path.join(app.getPath('userData'), CONFIG_FILE_NAME);
-}
-
-function normalizeConfig(rawConfig = {}) {
-    const defaultLoadUrl = typeof rawConfig.defaultLoadUrl === 'string' && rawConfig.defaultLoadUrl.trim()
-        ? rawConfig.defaultLoadUrl.trim()
-        : DEFAULT_CONFIG.defaultLoadUrl;
-
-    const loadUrl = typeof rawConfig.loadUrl === 'string' && rawConfig.loadUrl.trim()
-        ? rawConfig.loadUrl.trim()
-        : DEFAULT_CONFIG.loadUrl;
-
-    return {
-        defaultLoadUrl,
-        loadUrl
-    };
-}
-
-function writeConfigFile(configPath, config) {
-    fs.mkdirSync(path.dirname(configPath), { recursive: true });
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-}
-
-function getLegacyConfigCandidates(targetPath) {
-    const candidates = new Set([
-        path.resolve(__dirname, '..', CONFIG_FILE_NAME),
-        path.resolve(process.cwd(), CONFIG_FILE_NAME)
-    ]);
-
-    try {
-        candidates.add(path.resolve(app.getAppPath(), CONFIG_FILE_NAME));
-    } catch (error) {
-        // Ignored: app path may not be available in some startup scenarios.
-    }
-
-    if (process.resourcesPath) {
-        candidates.add(path.resolve(process.resourcesPath, CONFIG_FILE_NAME));
-    }
-
-    candidates.delete(targetPath);
-    return Array.from(candidates);
-}
-
-function tryMigrateLegacyConfig(targetPath) {
-    const candidates = getLegacyConfigCandidates(targetPath);
-
-    for (const candidate of candidates) {
-        if (!candidate || !fs.existsSync(candidate)) {
-            continue;
-        }
-
-        try {
-            const legacyContent = fs.readFileSync(candidate, 'utf8');
-            const parsed = JSON.parse(legacyContent);
-            const normalized = normalizeConfig(parsed);
-            writeConfigFile(targetPath, normalized);
-            promptQuick(`migrated configuration from ${candidate}`);
-            return candidate;
-        } catch (error) {
-            console.warn(`Failed to migrate configuration from ${candidate}.`, error);
-        }
-    }
-
-    return false;
-}
-
-function ensureConfigFile() {
-    const targetPath = getConfigPath();
-
-    if (fs.existsSync(targetPath)) {
-        return { path: targetPath, created: false };
-    }
-
-    const migratedFrom = tryMigrateLegacyConfig(targetPath);
-    if (migratedFrom) {
-        return { path: targetPath, created: false, migratedFrom };
-    }
-
-    writeConfigFile(targetPath, { ...DEFAULT_CONFIG });
-    promptQuick('init config file saved.');
-    return { path: targetPath, created: true };
-}
-
-function loadConfigFromPath(configPath) {
-    try {
-        const data = fs.readFileSync(configPath, 'utf8');
-        const parsed = JSON.parse(data);
-        const normalized = normalizeConfig(parsed);
-
-        if (parsed.defaultLoadUrl !== normalized.defaultLoadUrl || parsed.loadUrl !== normalized.loadUrl) {
-            writeConfigFile(configPath, normalized);
-        }
-
-        return normalized;
-    } catch (error) {
-        console.error('Failed to parse configuration file. Falling back to defaults.', error);
-        writeConfigFile(configPath, { ...DEFAULT_CONFIG });
-        return { ...DEFAULT_CONFIG };
-    }
-}
+const configFileName = 'config.json';
+const defaultConfigContent = '{"defaultLoadUrl":"https://sctrading.storemyway.com/web/admin/","loadUrl":"https://sctrading.storemyway.com/web/admin/"}';
 
 // const escpos = require('escpos');
 // install escpos-usb adapter module manually
@@ -122,8 +24,7 @@ function loadConfigFromPath(configPath) {
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let mainWindow;
-let mainWindowSetting;
+let mainWindow
 
 // function tryPosPrinter(){
 //     const {PosPrinter} = require("electron-pos-printer");
@@ -410,15 +311,55 @@ let mainWindowSetting;
         
 // }
 
-function readConfig() {
-    const { path: configPath } = ensureConfigFile();
-    return loadConfigFromPath(configPath);
+function readConfig(){
+
+    // let appPath =  path.parse(app.getPath('userData'));
+    let appConfigPath = configFileName;
+    //appPath?.dir + '\\' + configFolder + '\\' + configName;
+
+    // promptDialog(
+    //     true,
+    //     mainWindow,
+    //     {
+    //         message: "read from " + appConfigPath
+    //     }
+    // )
+
+    
+    let data = fs.readFileSync(appConfigPath, 'utf8');
+    // function (err,data) {
+    //     if (err) {
+    //     return console.log(err);
+    //     }
+    //     console.log(data);
+    //     return data;
+    // });
+
+    // console.log('data', data)
+
+    // promptDialog(
+    //     true,
+    //     mainWindow,
+    //     {
+    //         message: "data read from " + JSON.stringify(data)
+    //     }
+    // )
+
+    return JSON.parse(data);
+}
+
+function getNewConfigJson(url){
+    let currentConfig = readConfig(configFileName);
+    return {
+        defaultLoadUrl: currentConfig?.defaultLoadUrl,
+        loadUrl: url
+    }
 }
 
 function initConfig(){
 
     // With checking if dir already exists
-    // if (!fs.existsSync(configFolder))
+    // if (!fs.existsSync(configFolder)) 
     //     fs.mkdir(configFolder, (err) => {
     //         if (err) {
     //             return console.error(err);
@@ -428,60 +369,55 @@ function initConfig(){
     //     }
     // );
 
-    const { path: configPath, created } = ensureConfigFile();
+    // let configFileName = 'config.json';
+    
+    if (!fs.existsSync(configFileName)){
+       
+        fs.writeFile(configFileName, defaultConfigContent, (err) => {
+            if(err)
+                console.log(err)
+        })
 
-    if (!created) {
-        promptQuick('existing config detected.');
-    }
+        promptQuick('init config file saved.')
 
-    return loadConfigFromPath(configPath);
+    }else{
+        
+        promptQuick('existing config detected.')
+        
+    };
+    
+
+    return defaultConfigContent;
 }
 
 
-function saveNewConfigJson(url, sourceWindow = mainWindow){
+function saveNewConfigJson(url){
 
-    const trimmedUrl = typeof url === 'string' ? url.trim() : '';
+    // let configFileName = 'config.json';
 
-    if (!trimmedUrl) {
-        promptDialog(
-            false,
-            sourceWindow,
-            {
-                title: 'Invalid URL',
-                message: 'Load URL cannot be empty.'
-            }
-        );
+    let newJson = getNewConfigJson(url);
 
-        return readConfig();
-    }
+    promptQuick('configFileName' + configFileName)
 
-    const { path: configPath } = ensureConfigFile();
-    const currentConfig = loadConfigFromPath(configPath);
-    const newConfig = {
-        defaultLoadUrl: currentConfig?.defaultLoadUrl ?? DEFAULT_CONFIG.defaultLoadUrl,
-        loadUrl: trimmedUrl
-    };
+    fs.writeFile(configFileName, JSON.stringify(newJson), (err) => {
+        if(err)
+            console.log(err)
+    })
 
-    writeConfigFile(configPath, newConfig);
-
-    promptQuick(`config file saved at ${configPath}`);
+    promptQuick('new config file saved.' + JSON.stringify(newJson))
 
     promptDialog(
             true,
-            sourceWindow,
+            mainWindow,
             {
                 title: "Saved Changes",
                 message: "Config saved ! Restart application to take effects !"
             }
         )
 
-    return newConfig;
+    return newJson;
 }
 
-
-function getSystemVersion() {
-    return app.getVersion();
-}
 
 function promptQuick(msg, obj = {}){
     // dialog.showErrorBox(
@@ -490,7 +426,7 @@ function promptQuick(msg, obj = {}){
     // )
 }
 
-function promptDialog(_status, _win, _props = {}){
+function promptDialog(_status, _win, _props){
 
     let defaultProps = {};
 
@@ -502,15 +438,16 @@ function promptDialog(_status, _win, _props = {}){
         defaultProps.title = 'Error Occurred !';
     }
 
-    const messageBoxOptions = {
-        message: '--',
-        ...defaultProps,
-        ..._props
-    };
+    if(!_props?.message){
+        _props.message = '--';
+    }
 
     dialog.showMessageBox(
-        _win ?? null,
-        messageBoxOptions
+        _win, 
+        {
+            ...defaultProps,
+            ..._props
+        }
     );
 }
 
@@ -519,10 +456,10 @@ function createWindowApplication() {
     //load config files
     let config = readConfig();
 
-    let loadUrl = (config?.loadUrl || '').trim();
+    let loadUrl = config?.loadUrl;
 
     if(!loadUrl){
-
+        
         promptDialog(
             false,
             mainWindow,
@@ -535,17 +472,26 @@ function createWindowApplication() {
     }
     console.log('Opening Main : ' + loadUrl)
 
-    const display = screen.getPrimaryDisplay();
+    const screenElectron = electron.screen;
+    const display = screenElectron.getPrimaryDisplay();
     const dimensions = display.workAreaSize;
 
-    const ratio = {width: 0.95, height: 0.95}
+    const _ratio = {width: 0.95, height: 0.95}
+    let width = parseInt(dimensions.width * _ratio.width);
+    let height = parseInt(dimensions.height * _ratio.height);
+
+    // console.log(width, height)
+
     const maxWidth = 1200;
     const maxHeight = 850;
 
-    const width = Math.min(Math.round(dimensions.width * ratio.width), maxWidth);
-    const height = Math.min(Math.round(dimensions.height * ratio.height), maxHeight);
-    const minWidth = width;
-    const minHeight = height;
+    width = width > maxWidth? maxWidth : width;
+    height = height > maxHeight? maxHeight : height;
+    
+    minWidth = width > maxWidth? maxWidth : width;
+    minHeight = height > maxHeight? maxHeight : height;
+
+    // console.log(width, height)
 
     // Create the browser window.
     mainWindow = new BrowserWindow({
@@ -558,9 +504,10 @@ function createWindowApplication() {
         // icon: `${__dirname}/assets/icon.ico`
         frame: false,
         webPreferences: {
-            contextIsolation: true,
-            nodeIntegration: false,
-            preload: path.join(__dirname, 'preload', 'mainPreload.js')
+            nodeIntegration: true,
+            contextIsolation: false, // workaround to allow use with Electron 12+
+            // preload: path.join(__dirname, 'preload.js'),
+            enableRemoteModule: true
         }
     })
 
@@ -685,23 +632,26 @@ function createWindowApplication() {
 
 function createWindowSetting() {
 
-    if (mainWindowSetting && !mainWindowSetting.isDestroyed()) {
-        mainWindowSetting.focus();
-        return;
-    }
-
-    const display = screen.getPrimaryDisplay();
+    const screenElectron = electron.screen;
+    const display = screenElectron.getPrimaryDisplay();
     const dimensions = display.workAreaSize;
 
-    const ratio = {width: 0.95, height: 0.95}
+    const _ratio = {width: 0.95, height: 0.95}
+    let width = parseInt(dimensions.width * _ratio.width);
+    let height = parseInt(dimensions.height * _ratio.height);
+
+    // console.log(width, height)
 
     const maxWidth = 600;
     const maxHeight = 425;
 
-    const width = Math.min(Math.round(dimensions.width * ratio.width), maxWidth);
-    const height = Math.min(Math.round(dimensions.height * ratio.height), maxHeight);
-    const minWidth = width;
-    const minHeight = height;
+    width = width > maxWidth? maxWidth : width;
+    height = height > maxHeight? maxHeight : height;
+    
+    minWidth = width > maxWidth? maxWidth : width;
+    minHeight = height > maxHeight? maxHeight : height;
+
+    // console.log(width, height)
 
     // Create the browser window.
     mainWindowSetting = new BrowserWindow({
@@ -714,9 +664,10 @@ function createWindowSetting() {
         // icon: `${__dirname}/assets/icon.ico`
         frame: true,
         webPreferences: {
-            contextIsolation: true,
-            nodeIntegration: false,
-            preload: path.join(__dirname, 'preload', 'settingsPreload.js')
+            nodeIntegration: true,
+            contextIsolation: false, // workaround to allow use with Electron 12+
+            // preload: path.join(__dirname, 'preload.js'),
+            enableRemoteModule: true
         }
     })
 
@@ -732,12 +683,39 @@ function createWindowSetting() {
 
 }
 
-ipcMain.handle('settings:readConfiguration', () => readConfig());
-ipcMain.handle('settings:getSystemVersion', () => getSystemVersion());
-ipcMain.handle('settings:saveConfiguration', (event, url) => {
-    const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-    return saveNewConfigJson(url, sourceWindow);
-});
+// This is required to be set to false beginning in Electron v9 otherwise
+// the SerialPort module can not be loaded in Renderer processes like we are doing
+// in this example. The linked Github issues says this will be deprecated starting in v10,
+// however it appears to still be changed and working in v11.2.0
+// Relevant discussion: https://github.com/electron/electron/issues/18397
+app.allowRendererProcessReuse=false
+
+// This method will be called when Electron has finished
+// initialization and is ready to create browser windows.
+// Some APIs can only be used after this event occurs.
+// app.on('ready', createWindowApplication)
+
+// app.on('ready', () => {
+
+    
+//     const path = 'config';
+
+//     // Without checking if dir already exists
+//     // fs.mkdir(path);
+
+//     console.log('path', path);
+
+//     // With checking if dir already exists
+//     if (!fs.existsSync(path)) 
+//         fs.mkdir(path, (err) => {
+//             if (err) {
+//                 return console.error(err);
+//             }
+//             console.log('Directory created successfully!');
+//         }
+//     );
+
+// })
 
 app.whenReady().then(() => {
 
@@ -783,7 +761,7 @@ app.on('activate', function() {
 // code. You can also put them in separate files and require them here.
 exports.saveConfiguration = (url) => {
     // console.log('Yay');
-    return saveNewConfigJson(url, mainWindow);
+    return saveNewConfigJson(url);
 }
 
 exports.readConfiguration = () => {
@@ -791,5 +769,7 @@ exports.readConfiguration = () => {
 }
 
 exports.getSystemVersion = () => {
-    return getSystemVersion();
+    let packageJson = require("../package.json");
+    // console.log('aaa', packageJson)
+    return packageJson.version;
 }
